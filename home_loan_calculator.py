@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rate, loan_tenure_years, 
                                 loan_insurance, property_taxes, home_insurance, maintenance_expenses, 
@@ -82,9 +83,14 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     ax.bar(year, principal_paid, label='Principal Paid', alpha=0.5)
     ax.bar(year, interest_paid, label='Interest Paid', alpha=0.5)
     
+    # Formatting Y-axis to show amounts in Lakhs (₹ 1 Lakh = ₹ 100,000)
     ax.set_xlabel('Year')
-    ax.set_ylabel('Amount (₹)')
+    ax.set_ylabel('Amount (₹ in Lakhs)')
     ax.set_title('Yearly Loan Payment Breakdown')
+    
+    # Set Y-axis limits and labels in Lakhs
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f'{x/100000:.1f}L'))
+    
     ax.legend()
     
     # Display the plot and table

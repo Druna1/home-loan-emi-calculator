@@ -23,17 +23,17 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     loan_amount -= extra_payment
     
     # Apply prepayments
-    # Monthly prepayment: Reduce loan amount by the monthly prepayment amount
+    # Ensure prepayments are only subtracted once
+    if prepayments_one_time > 0:
+        loan_amount -= prepayments_one_time
+    
+    # Monthly prepayment: Reduce loan amount by the monthly prepayment amount (applies to remaining loan balance)
     if prepayments_monthly > 0:
         loan_amount -= prepayments_monthly * loan_tenure_years * 12
     
     # Quarterly prepayment: Reduce loan amount by the quarterly prepayment amount
     if prepayments_quarterly > 0:
         loan_amount -= prepayments_quarterly * (loan_tenure_years * 4)
-    
-    # One-time prepayment: Apply the one-time prepayment directly
-    if prepayments_one_time > 0:
-        loan_amount -= prepayments_one_time
     
     # Monthly interest rate (annual rate divided by 12)
     monthly_interest_rate = (interest_rate / 100) / 12
@@ -65,7 +65,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         
         # Store the yearly data
         year.append(i)
-        remaining_balance.append(balance)
+        remaining_balance.append(max(balance, 0))  # Ensure the balance never goes negative
         interest_paid.append(total_interest_for_year)
         principal_paid.append(total_principal_for_year)
     

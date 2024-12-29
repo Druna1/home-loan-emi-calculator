@@ -19,11 +19,11 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     # Calculate loan amount
     loan_amount = home_value - (home_value * down_payment_percentage / 100) - loan_insurance
     
-    # Apply extra payment/prepayment towards the principal
+    # Apply extra payment/prepayment towards the principal (only applied once)
     loan_amount -= extra_payment
     
     # Apply prepayments
-    # Ensure prepayments are only subtracted once
+    # One-time prepayment: Apply the one-time prepayment directly (only subtracted once)
     if prepayments_one_time > 0:
         loan_amount -= prepayments_one_time
     
@@ -31,7 +31,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     if prepayments_monthly > 0:
         loan_amount -= prepayments_monthly * loan_tenure_years * 12
     
-    # Quarterly prepayment: Reduce loan amount by the quarterly prepayment amount
+    # Quarterly prepayment: Reduce loan amount by the quarterly prepayment amount (applies to remaining loan balance)
     if prepayments_quarterly > 0:
         loan_amount -= prepayments_quarterly * (loan_tenure_years * 4)
     
@@ -56,10 +56,16 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         total_interest_for_year = 0
         total_principal_for_year = 0
         
+        # Apply quarterly prepayments: Subtract at the end of every 3 months
         for j in range(12):  # For each month
             interest_payment = balance * monthly_interest_rate
             principal_payment = emi - interest_payment
             balance -= principal_payment
+            
+            # Every 3 months, apply the quarterly prepayment
+            if (j + 1) % 3 == 0 and prepayments_quarterly > 0:
+                balance -= prepayments_quarterly
+            
             total_interest_for_year += interest_payment
             total_principal_for_year += principal_payment
         

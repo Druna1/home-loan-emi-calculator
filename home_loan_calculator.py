@@ -34,4 +34,97 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     
     # EMI calculation formula
     emi = (loan_amount * monthly_interest_rate * (1 + monthly_interest_rate)**loan_tenure_months) / \
+          ((1 + monthly_interest_rate)**loan_tenure_months - 1)
     
+    # Yearly breakdown: Create empty lists for each year
+    year = []
+    remaining_balance = []
+    principal_paid = []
+    interest_paid = []
+
+    balance = loan_amount
+    for i in range(1, loan_tenure_years + 1):
+        total_interest_for_year = 0
+        total_principal_for_year = 0
+        
+        # Apply monthly prepayments: Subtract at the end of every month
+        for j in range(12):  # For each month
+            interest_payment = balance * monthly_interest_rate
+            principal_payment = emi - interest_payment
+            balance -= principal_payment
+            
+            # Every month, apply the monthly prepayment
+            if prepayments_monthly > 0:
+                balance -= prepayments_monthly
+            
+            # Every 3 months (quarterly), apply the quarterly prepayment
+            if (j + 1) % 3 == 0 and prepayments_quarterly > 0:
+                balance -= prepayments_quarterly
+            
+            total_interest_for_year += interest_payment
+            total_principal_for_year += principal_payment
+        
+        # Store the yearly data
+        year.append(i)
+        remaining_balance.append(max(balance, 0))  # Ensure the balance never goes negative
+        interest_paid.append(total_interest_for_year)
+        principal_paid.append(total_principal_for_year)
+    
+    # Create a DataFrame for the table
+    schedule_df = pd.DataFrame({
+        'Year': year,
+        'Remaining Balance (₹)': remaining_balance,
+        'Interest Paid (₹)': interest_paid,
+        'Principal Paid (₹)': principal_paid
+    })
+    
+    # Create a plot for the remaining balance and principal vs interest
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(year, remaining_balance, label='Remaining Balance', marker='o')
+    ax.bar(year, principal_paid, label='Principal Paid', alpha=0.5)
+    ax.bar(year, interest_paid, label='Interest Paid', alpha=0.5)
+    
+    # Formatting Y-axis to show amounts in Lakhs (₹ 1 Lakh = ₹ 100,000)
+    ax.set_xlabel('Year')
+    ax.set_ylabel('Amount (₹ in Lakhs)')
+    ax.set_title('Yearly Loan Payment Breakdown')
+    
+    # Set Y-axis limits and labels in Lakhs
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f'{x/100000:.1f}L'))
+    
+    ax.legend()
+    
+    # Display the plot and table
+    st.pyplot(fig)
+    st.write("### Yearly Payment Schedule")
+    st.dataframe(schedule_df)
+
+    return emi, schedule_df, fig
+
+# Streamlit app
+st.title("Home Loan EMI Calculator with Yearly Breakdown and Prepayments")
+
+# Create input fields
+home_value = st.number_input("Home Value (₹)", min_value=1000000, step=100000)
+down_payment_percentage = st.number_input("Down Payment Percentage (%)", min_value=0, max_value=100, step=1)
+interest_rate = st.number_input("Interest Rate (%)", min_value=0.0, step=0.1)
+loan_tenure_years = st.number_input("Loan Tenure (Years)", min_value=1, max_value=40, step=1)
+loan_insurance = st.number_input("Loan Insurance (₹)", min_value=0, step=1000)
+property_taxes = st.number_input("Property Taxes per Year (₹)", min_value=0, step=500)
+home_insurance = st.number_input("Home Insurance per Year (₹)", min_value=0, step=500)
+maintenance_expenses = st.number_input("Maintenance Expenses per Month (₹)", min_value=0, step=100)
+
+# Add input fields for partial prepayments
+prepayments_monthly = st.number_input("Monthly Prepayment (₹)", min_value=0, step=1000, help="Monthly prepayment amount")
+prepayments_quarterly = st.number_input("Quarterly Prepayment (₹)", min_value=0, step=1000, help="Quarterly prepayment amount")
+prepayments_one_time = st.number_input("One-time Prepayment (₹)", min_value=0, step=1000, help="One-time prepayment amount")
+
+# Calculate button
+if st.button("Calculate EMI"):
+    emi, schedule_df, fig = calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rate, loan_tenure_years, 
+                                                      loan_insurance, property_taxes, home_insurance, maintenance_expenses, 
+                                                      prepayments_monthly, prepayments_quarterly, prepayments_one_time)
+    
+    if emi is not None and schedule_df is not None:
+        # Display the EMI
+        st.write(f"**EMI: ₹ {emi:.2f}**")

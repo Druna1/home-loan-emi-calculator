@@ -140,15 +140,12 @@ def calculate_emi_and_schedule(
     )
 
     # 4) FILTER OUT PAST MONTHS OF THE CURRENT CALENDAR YEAR
+    import datetime
     today = datetime.datetime.now()
     current_year_system = today.year
     current_month_system = today.month
 
     if not df_monthly.empty:
-        # Keep rows if:
-        #  - row's year < current system year
-        #  - row's year > current system year
-        #  - row's year == current system year and row's month >= system month
         condition_keep = (
             (df_monthly['Year'] < current_year_system)
             | (df_monthly['Year'] > current_year_system)
@@ -160,6 +157,7 @@ def calculate_emi_and_schedule(
         df_monthly = df_monthly[condition_keep].copy()
 
     # 5) BUILD YEARLY AGGREGATION FROM FILTERED MONTHLY
+    import numpy as np
     if df_monthly.empty:
         df_yearly = pd.DataFrame(columns=['Year','PrincipalSum','PrepaymentSum','InterestSum','FinalBalance'])
     else:
@@ -179,7 +177,6 @@ def calculate_emi_and_schedule(
 
         df_yearly = df_monthly.groupby('Year').apply(aggregator).reset_index()
 
-    # 6) MERGE WITH ALL YEARS
     all_years = list(range(start_year, start_year + loan_tenure_years))
     df_full_years = pd.DataFrame({'Year': all_years})
     df_yearly = pd.merge(df_full_years, df_yearly, on='Year', how='left').fillna(0)
@@ -188,7 +185,6 @@ def calculate_emi_and_schedule(
     df_yearly['TotalPayment'] = df_yearly['PrincipalSum'] + df_yearly['InterestSum'] + df_yearly['PrepaymentSum']
     df_yearly['TaxesInsuranceMaintenance'] = property_taxes + home_insurance + (maintenance_expenses * 12)
 
-    # Cumulative principal+prepay => % of Loan Paid
     if initial_principal > 0:
         df_yearly['CumulativePP'] = df_yearly['PrincipalSum'].cumsum() + df_yearly['PrepaymentSum'].cumsum()
         df_yearly['PctLoanPaid'] = (df_yearly['CumulativePP'] / initial_principal * 100).clip(upper=100)
@@ -209,7 +205,7 @@ def calculate_emi_and_schedule(
     })
     schedule_df.reset_index(drop=True, inplace=True)
 
-    # 7) SUMMARIES
+    # 6) SUMMARIES
     total_principal_paid = df_yearly['PrincipalSum'].sum()
     total_prepayments = df_yearly['PrepaymentSum'].sum() + prepayments_one_time
     total_interest_paid = df_yearly['InterestSum'].sum()
@@ -232,7 +228,7 @@ def calculate_emi_and_schedule(
         'taxes_ins_maint': total_taxes_ins_maint
     }
 
-    # 8) CHARTS
+    # 7) CHARTS
     fig_pie, ax_pie = plt.subplots(figsize=(5, 5))
     ax_pie.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
     ax_pie.axis('equal')
@@ -246,8 +242,6 @@ def calculate_emi_and_schedule(
     balance_list = df_yearly['BalanceClamped'].values
 
     bar_width = 0.6
-
-    # Principal
     ax_bar.bar(
         numeric_years,
         principal_list,
@@ -255,7 +249,6 @@ def calculate_emi_and_schedule(
         label='Principal',
         width=bar_width
     )
-    # Interest
     bottom_interest = principal_list
     ax_bar.bar(
         numeric_years,
@@ -265,7 +258,6 @@ def calculate_emi_and_schedule(
         label='Interest',
         width=bar_width
     )
-    # Prepayments
     bottom_prepay = principal_list + interest_list
     ax_bar.bar(
         numeric_years,
@@ -275,7 +267,6 @@ def calculate_emi_and_schedule(
         label='Prepayments',
         width=bar_width
     )
-    # Remaining Balance line
     ax_bar.plot(
         numeric_years,
         balance_list,
@@ -356,8 +347,9 @@ if st.button("Calculate EMI"):
     st.write(f"**Taxes, Home Insurance & Maintenance (Total)**: {format_inr(summary_dict['taxes_ins_maint'])}")
 
     st.write(f"**Base EMI**: {format_inr(emi)}")
-    st.write(f"**Approx. Total Monthly Payment (EMI + Monthly Prepayment)**: {format_inr(total_monthly_payment)}")
-    st.write(f"**Total Interest Paid (Approx)**: {format_inr(total_interest_paid)}")
+    # Removed the two lines below:
+    # st.write(f"**Approx. Total Monthly Payment (EMI + Monthly Prepayment)**: {format_inr(total_monthly_payment)}")
+    # st.write(f"**Total Interest Paid (Approx)**: {format_inr(total_interest_paid)}")
 
     st.pyplot(fig_pie)
     st.pyplot(fig_bar)
@@ -399,11 +391,3 @@ if st.button("Calculate EMI"):
                             'props': [
                                 ('background-color', '#85C1E9'),
                                 ('color', 'black'),
-                                ('font-weight', 'bold')
-                            ]
-                        },
-                        {'selector': 'td', 'props': [('color', 'black')]},
-                    ])
-                )
-    else:
-        st.write("**No monthly data** (all months are past or no valid schedule).")

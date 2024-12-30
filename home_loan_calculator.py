@@ -2,6 +2,14 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import locale
+
+# Set locale for INR formatting
+locale.setlocale(locale.LC_ALL, 'en_IN')
+
+# Function to format amounts as INR
+def format_inr(amount):
+    return locale.currency(amount, grouping=True)
 
 # Function to calculate EMI and loan schedule
 def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rate, loan_tenure_years, 
@@ -93,9 +101,9 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     # Create a DataFrame for the table
     schedule_df = pd.DataFrame({
         'Year': year,
-        'Remaining Balance (₹)': remaining_balance,
-        'Interest Paid (₹)': interest_paid,
-        'Principal Paid (₹)': principal_paid
+        'Remaining Balance (₹)': [format_inr(balance) for balance in remaining_balance],
+        'Interest Paid (₹)': [format_inr(payment) for payment in interest_paid],
+        'Principal Paid (₹)': [format_inr(payment) for payment in principal_paid]
     })
     
     # Create a pie chart for the monthly breakdown
@@ -121,14 +129,14 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     total_monthly_payment = emi + prepayments_monthly
 
     # Display the monthly payment breakdown and pie chart
-    st.write(f"### Total Monthly Payment: ₹ {total_monthly_payment:.2f}")
+    st.write(f"### Total Monthly Payment: ₹ {format_inr(total_monthly_payment)}")
     st.write("#### Monthly Payment Breakdown:")
-    st.write(f"- Principal & Interest (EMI): ₹ {emi:.2f}")
-    st.write(f"- Monthly Extra Payment (from Dec 2024): ₹ {prepayments_monthly:.2f}")
-    st.write(f"- Property Taxes: ₹ {property_taxes}")
-    st.write(f"- Home Insurance: ₹ {home_insurance}")
-    st.write(f"- Maintenance Expenses: ₹ {maintenance_expenses}")
-    st.write(f"- Interest Paid (Total): ₹ {total_interest:.2f}")
+    st.write(f"- Principal & Interest (EMI): ₹ {format_inr(emi)}")
+    st.write(f"- Monthly Extra Payment (from Dec 2024): ₹ {format_inr(prepayments_monthly)}")
+    st.write(f"- Property Taxes: ₹ {format_inr(property_taxes)}")
+    st.write(f"- Home Insurance: ₹ {format_inr(home_insurance)}")
+    st.write(f"- Maintenance Expenses: ₹ {format_inr(maintenance_expenses)}")
+    st.write(f"- Total Interest Paid (Total): ₹ {format_inr(total_interest)}")
 
     # Display the pie chart
     st.pyplot(fig_pie)
@@ -181,4 +189,4 @@ if st.button("Calculate EMI"):
     
     if emi is not None and schedule_df is not None:
         # Display the EMI
-        st.write(f"**EMI: ₹ {emi:.2f}**")
+        st.write(f"**EMI: ₹ {format_inr(emi)}**")

@@ -33,6 +33,8 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     remaining_balance = []
     principal_paid = []
     interest_paid = []
+    total_payment = []
+    prepayments = []
     
     balance = loan_amount
     total_interest_paid = 0
@@ -63,6 +65,8 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
             remaining_balance.append(balance)
             interest_paid.append(total_interest_for_year)
             principal_paid.append(total_principal_for_year)
+            prepayments.append(prepayments_monthly * 12 + prepayments_one_time + prepayments_quarterly * (current_month // 3))
+            total_payment.append(emi * 12 + prepayments_monthly * 12 + prepayments_one_time + prepayments_quarterly * (current_month // 3))
             
             # Reset yearly totals
             total_interest_for_year = 0
@@ -79,6 +83,8 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         remaining_balance += [0] * (loan_tenure_years - len(remaining_balance))
         interest_paid += [0] * (loan_tenure_years - len(interest_paid))
         principal_paid += [0] * (loan_tenure_years - len(principal_paid))
+        prepayments += [0] * (loan_tenure_years - len(prepayments))
+        total_payment += [0] * (loan_tenure_years - len(total_payment))
         year += [last_valid_entry] * (loan_tenure_years - len(year))
     
     # Ensure all lists are of the same length by trimming or padding them
@@ -87,13 +93,23 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     remaining_balance = remaining_balance[:max_length]
     interest_paid = interest_paid[:max_length]
     principal_paid = principal_paid[:max_length]
+    prepayments = prepayments[:max_length]
+    total_payment = total_payment[:max_length]
 
+    # Calculate % of loan paid
+    total_principal_paid_sum = sum(principal_paid)
+    percentage_paid = [(principal / total_principal_paid_sum) * 100 for principal in principal_paid]
+    
     # Create a DataFrame for the table
     schedule_df = pd.DataFrame({
-        'Year': year,
-        'Remaining Balance (₹)': [format_inr(balance) for balance in remaining_balance],
-        'Interest Paid (₹)': [format_inr(payment) for payment in interest_paid],
-        'Principal Paid (₹)': [format_inr(payment) for payment in principal_paid]
+        'Year': [f'{int(y)}' for y in year],  # Format year as a string for display
+        'Principal (₹)': [format_inr(principal) for principal in principal_paid],
+        'Prepayments (₹)': [format_inr(prep) for prep in prepayments],
+        'Interest (₹)': [format_inr(interest) for interest in interest_paid],
+        'Taxes, Insurance, Expenses (₹)': [format_inr(property_taxes + home_insurance + maintenance_expenses)] * len(year),
+        'Total Payment (₹)': [format_inr(payment) for payment in total_payment],
+        'Balance (₹)': [format_inr(balance) for balance in remaining_balance],
+        '% of Loan Paid': [f'{perc:.2f}%' for perc in percentage_paid]
     })
     
     # Create a pie chart for the monthly breakdown
@@ -143,9 +159,12 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     # Display the bar chart
     st.pyplot(fig_bar)
 
-    # Display the table
+    # Display the table with colorful header
     st.write("### Yearly Payment Schedule")
-    st.dataframe(schedule_df)
+    st.dataframe(schedule_df.style.set_table_styles([
+        {'selector': 'th', 'props': [('background-color', 'skyblue'), ('color', 'black'), ('font-weight', 'bold')]},  # Colorful header
+        {'selector': 'td', 'props': [('color', 'black')]},  # Normal cell text color
+    ))
 
     return emi, schedule_df, fig_pie, fig_bar
 

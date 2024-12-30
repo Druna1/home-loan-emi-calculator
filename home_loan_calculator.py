@@ -77,6 +77,13 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         principal_paid += [principal_paid[-1]] * (loan_tenure_years - len(principal_paid))
         year += [last_valid_entry] * (loan_tenure_years - len(year))
 
+    # Ensure all lists are the same length by trimming to the correct size
+    max_length = max(len(year), len(remaining_balance), len(interest_paid), len(principal_paid))
+    year = year[:max_length]
+    remaining_balance = remaining_balance[:max_length]
+    interest_paid = interest_paid[:max_length]
+    principal_paid = principal_paid[:max_length]
+
     # Create a DataFrame for the table
     schedule_df = pd.DataFrame({
         'Year': year,

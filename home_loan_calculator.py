@@ -88,12 +88,6 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     interest_paid = interest_paid[:max_length]
     principal_paid = principal_paid[:max_length]
 
-    # Debugging: Check list lengths before creating the DataFrame
-    print(f"year length: {len(year)}")
-    print(f"remaining_balance length: {len(remaining_balance)}")
-    print(f"interest_paid length: {len(interest_paid)}")
-    print(f"principal_paid length: {len(principal_paid)}")
-    
     # Create a DataFrame for the table
     schedule_df = pd.DataFrame({
         'Year': year,
@@ -107,15 +101,12 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     total_prepayments = prepayments_monthly * loan_tenure_months + prepayments_one_time + prepayments_quarterly * (loan_tenure_years * 4)
     total_interest = sum(interest_paid)
     
-    # Total of all payments: Principal, Prepayments, Interest
-    total_of_all_payments = total_principal + total_prepayments + total_interest
-    
-    # Pie chart categories
+    # Pie chart categories with updated colors
     labels = ['Principal', 'Prepayments', 'Interest']
     sizes = [total_principal, total_prepayments, total_interest]
-    colors = ['#28a745', '#ff7f0e', '#ff9999']
+    colors = ['#006400', '#ffcc99', '#ff4500']  # Dark Green for Principal, Pastel for Prepayments, Dark Orange for Interest
     
-    # Plot pie chart with reduced size
+    # Plot pie chart with updated colors
     fig_pie, ax_pie = plt.subplots(figsize=(5, 5))  # Smaller pie chart
     ax_pie.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
     ax_pie.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
@@ -137,10 +128,10 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     # Display the pie chart
     st.pyplot(fig_pie)
 
-    # Bar graph for principal, interest, and remaining balance
+    # Bar graph for principal, interest, and remaining balance (stacked bars)
     fig_bar, ax_bar = plt.subplots(figsize=(12, 6))  # Longer bar chart
-    ax_bar.bar(year, principal_paid, label='Principal Paid', color='#28a745', alpha=0.7, width=0.4, align='center')
-    ax_bar.bar(year, interest_paid, label='Interest Paid', color='#ff7f0e', alpha=0.7, width=0.4, align='edge')
+    ax_bar.bar(year, principal_paid, label='Principal Paid', color='#006400', alpha=0.7, width=0.4, align='center')
+    ax_bar.bar(year, interest_paid, label='Interest Paid', color='#ff4500', alpha=0.7, width=0.4, align='center', bottom=principal_paid)
     ax_bar.plot(year, remaining_balance, label='Remaining Balance', marker='o', color='#1f77b4')
 
     ax_bar.set_xlabel('Year')

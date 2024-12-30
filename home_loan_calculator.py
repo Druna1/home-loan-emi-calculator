@@ -112,7 +112,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     colors = ['#28a745', '#ff7f0e', '#ff9999']
     
     # Plot pie chart with reduced size
-    fig_pie, ax_pie = plt.subplots(figsize=(6, 6))  # Reduced size
+    fig_pie, ax_pie = plt.subplots(figsize=(5, 5))  # Smaller pie chart
     ax_pie.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
     ax_pie.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
     ax_pie.set_title("Total Payments Breakdown")
@@ -128,14 +128,15 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     st.write(f"- Property Taxes: ₹ {property_taxes}")
     st.write(f"- Home Insurance: ₹ {home_insurance}")
     st.write(f"- Maintenance Expenses: ₹ {maintenance_expenses}")
+    st.write(f"- Interest Paid (Total): ₹ {total_interest:.2f}")
 
     # Display the pie chart
     st.pyplot(fig_pie)
 
     # Bar graph for principal, interest, and remaining balance
-    fig_bar, ax_bar = plt.subplots(figsize=(10, 6))
-    ax_bar.bar(year, principal_paid, label='Principal Paid', color='#28a745', alpha=0.7)
-    ax_bar.bar(year, interest_paid, label='Interest Paid', color='#ff7f0e', alpha=0.7)
+    fig_bar, ax_bar = plt.subplots(figsize=(12, 6))  # Longer bar chart
+    ax_bar.bar(year, principal_paid, label='Principal Paid', color='#28a745', alpha=0.7, width=0.4, align='center')
+    ax_bar.bar(year, interest_paid, label='Interest Paid', color='#ff7f0e', alpha=0.7, width=0.4, align='edge')
     ax_bar.plot(year, remaining_balance, label='Remaining Balance', marker='o', color='#1f77b4')
 
     ax_bar.set_xlabel('Year')

@@ -391,3 +391,11 @@ if st.button("Calculate EMI"):
                             'props': [
                                 ('background-color', '#85C1E9'),
                                 ('color', 'black'),
+                                ('font-weight', 'bold')
+                            ]
+                        },
+                        {'selector': 'td', 'props': [('color', 'black')]},
+                    ])
+                )
+    else:
+        st.write("**No monthly data** (all months are past or no valid schedule).")

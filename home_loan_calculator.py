@@ -23,6 +23,44 @@ def calculate_emi_and_schedule(
     """
     Calculates an approximate loan schedule, tracking data yearly,
     and creates charts for a Streamlit app.
+
+    Parameters:
+    -----------
+    home_value                : float
+        Total property value in INR.
+    down_payment_percentage   : float
+        Percentage of the property value paid upfront.
+    interest_rate             : float
+        Annual interest rate in percent (e.g., 8.0 for 8%).
+    loan_tenure_years         : int
+        Loan tenure in years (e.g., 15).
+    loan_insurance            : float
+        Any insurance fees that reduce the principal amount.
+    property_taxes            : float
+        Annual property taxes (in INR).
+    home_insurance            : float
+        Annual home insurance (in INR).
+    maintenance_expenses      : float
+        Monthly maintenance in INR.
+    prepayments_monthly       : float
+        Extra monthly payment for principal.
+    prepayments_quarterly     : float
+        Extra payment every 3 months for principal.
+    prepayments_one_time      : float
+        One-time prepayment deducted from the principal at the start.
+
+    Returns:
+    --------
+    emi : float
+        The standard monthly EMI without extra prepayments.
+    schedule_df : pd.DataFrame
+        A yearly summary of principal, interest, prepayments, etc.
+    fig_pie : matplotlib.figure.Figure
+        A pie chart figure showing total payment breakdown.
+    total_monthly_payment : float
+        Approx. monthly payment (EMI + monthly prepayment).
+    total_interest_paid : float
+        Approx. total interest paid over the life of the loan.
     """
 
     # 1. Calculate initial loan amount (minus down payment & insurance).
@@ -42,7 +80,7 @@ def calculate_emi_and_schedule(
     # 5. Compute EMI (standard amortized formula)
     if monthly_interest_rate == 0:
         # Edge case: 0% interest
-        emi = loan_amount / loan_tenure_months
+        emi = loan_amount / loan_tenure_months if loan_tenure_months > 0 else 0
     else:
         emi = (
             loan_amount
@@ -99,7 +137,7 @@ def calculate_emi_and_schedule(
             interest_paid_list.append(total_interest_for_year)
             principal_paid_list.append(total_principal_for_year)
 
-            # Approx total prepayments in a year
+            # Approx total prepayments in a year (simplification)
             year_prepayments = prepayments_monthly * 12 + prepayments_quarterly * 4
             prepayments_list.append(year_prepayments)
 
@@ -162,21 +200,22 @@ def calculate_emi_and_schedule(
 # -------------- STREAMLIT APP --------------
 st.title("Home Loan EMI Calculator with Prepayments (Revised)")
 
-# **Updated default values**:
-**home_value = st.number_input("Home Value (₹)", min_value=1_000_000, step=100000, value=1_000_000)
+# Updated default values
+home_value = st.number_input("Home Value (₹)", min_value=1_000_000, step=100000, value=1_000_000)
 down_payment_percentage = st.number_input("Down Payment Percentage (%)", min_value=0, max_value=100, step=1, value=20)
 interest_rate = st.number_input("Interest Rate (%)", min_value=0.0, step=0.1, value=8.0)
 loan_tenure_years = st.number_input("Loan Tenure (Years)", min_value=1, max_value=40, step=1, value=15)
 loan_insurance = st.number_input("Loan Insurance (₹)", min_value=0, step=1000, value=0)
 property_taxes = st.number_input("Property Taxes per Year (₹)", min_value=0, step=500, value=0)
 home_insurance = st.number_input("Home Insurance per Year (₹)", min_value=0, step=500, value=0)
-maintenance_expenses = st.number_input("Maintenance Expenses per Month (₹)", min_value=0, step=100, value=0)**
+maintenance_expenses = st.number_input("Maintenance Expenses per Month (₹)", min_value=0, step=100, value=0)
 
-prepayments_monthly = st.number_input("Monthly Prepayment (₹)", min_value=0, step=1000, value=0, 
+# Prepayments
+prepayments_monthly = st.number_input("Monthly Prepayment (₹)", min_value=0, step=1000, value=0,
                                       help="Monthly extra payment towards principal")
-prepayments_quarterly = st.number_input("Quarterly Prepayment (₹)", min_value=0, step=1000, value=0, 
+prepayments_quarterly = st.number_input("Quarterly Prepayment (₹)", min_value=0, step=1000, value=0,
                                         help="Every 3rd month, extra payment towards principal")
-prepayments_one_time = st.number_input("One-time Prepayment (₹)", min_value=0, step=1000, value=0, 
+prepayments_one_time = st.number_input("One-time Prepayment (₹)", min_value=0, step=1000, value=0,
                                        help="One-time amount deducted immediately from loan")
 
 if st.button("Calculate EMI"):
@@ -194,12 +233,15 @@ if st.button("Calculate EMI"):
         prepayments_one_time
     )
 
+    # Display EMI, total monthly payment (with prepayment), and total interest
     st.write(f"**Base EMI: {format_inr(emi)}**")
     st.write(f"**Approx. Total Monthly Payment (EMI + Monthly Prepayment): {format_inr(total_monthly_payment)}**")
     st.write(f"**Total Interest Paid (Approx): {format_inr(total_interest_paid)}**")
 
+    # Show the pie chart
     st.pyplot(fig_pie)
 
+    # Show the yearly schedule
     st.write("### Yearly Payment Schedule")
     st.dataframe(
         schedule_df.style.set_table_styles([

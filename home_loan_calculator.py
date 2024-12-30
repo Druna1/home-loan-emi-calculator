@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import math
 import calendar
+import datetime
 
 # Function to format amounts as INR (no decimals, comma-separated)
 def format_inr(amount):
@@ -21,9 +22,15 @@ def calculate_monthly_schedule(
     """
     Generate a MONTH-BY-MONTH amortization schedule.
     Returns a DataFrame with columns:
-      [Year, MonthNum, CalendarMonth, InterestPaid, PrincipalPaid, Prepayment, OldBalance, NewBalance]
-    Where 'MonthNum' is 1..n of the entire loan, 'CalendarMonth' = Jan, Feb, etc. with start_year.
+      [Year, MonthNum, CalendarMonthIndex, CalendarMonthAbbr,
+       InterestPaid, PrincipalPaid, Prepayment, OldBalance, NewBalance]
+    Where:
+      - 'Year' is the actual calendar year.
+      - 'MonthNum' is the sequential month of the loan (1..n).
+      - 'CalendarMonthIndex' = 1..12 for Jan..Dec.
+      - 'CalendarMonthAbbr' = 'Jan', 'Feb', etc.
     """
+
     balance = initial_principal
     data_rows = []
 
@@ -33,7 +40,10 @@ def calculate_monthly_schedule(
         year_offset = (current_month - 1) // 12
         this_year = start_year + year_offset
         this_month_index = (current_month - 1) % 12  # 0..11
-        month_name = calendar.month_abbr[this_month_index + 1]  # 'Jan', 'Feb', etc.
+
+        # For display
+        month_abbr = calendar.month_abbr[this_month_index + 1]  # e.g., 'Jan', 'Feb'
+        calendar_month_index = this_month_index + 1             # 1..12
 
         # Interest & principal from EMI
         interest_payment = balance * monthly_interest_rate
@@ -53,23 +63,22 @@ def calculate_monthly_schedule(
         if balance < 0:
             balance = 0
 
-        row = {
+        data_rows.append({
             'Year': this_year,
-            'MonthNum': current_month,
-            'CalendarMonth': f"{month_name}",
+            'MonthNum': current_month,        # overall month in the loan
+            'CalendarMonthIndex': calendar_month_index,  
+            'CalendarMonthAbbr': month_abbr,
             'InterestPaid': interest_payment,
             'PrincipalPaid': principal_payment,
             'Prepayment': prepay_this_month,
             'OldBalance': old_balance,
             'NewBalance': balance,
-        }
-        data_rows.append(row)
+        })
 
         current_month += 1
 
     df_monthly = pd.DataFrame(data_rows)
     return df_monthly
-
 
 def calculate_emi_and_schedule(
     home_value,
@@ -140,15 +149,14 @@ def calculate_emi_and_schedule(
             'FinalBalance': final_balance
         })
 
+    import numpy as np
+
     if df_monthly.empty:
-        # If no monthly rows, create an empty df for the year-based aggregator
-        import numpy as np
         df_yearly = pd.DataFrame(columns=['Year','PrincipalSum','PrepaymentSum','InterestSum','FinalBalance'])
     else:
         df_monthly['Year'] = df_monthly['Year'].astype(int)
         df_yearly = df_monthly.groupby('Year').apply(aggregator).reset_index()
 
-    # Fill missing years
     all_years = list(range(start_year, start_year + loan_tenure_years))
     df_full_years = pd.DataFrame({'Year': all_years})
     df_yearly = pd.merge(df_full_years, df_yearly, on='Year', how='left')
@@ -159,14 +167,12 @@ def calculate_emi_and_schedule(
     df_yearly['TaxesInsuranceMaintenance'] = (property_taxes + home_insurance + (maintenance_expenses * 12))
 
     # Cumulative principal+prepayments => % of Loan Paid
-    df_yearly['CumulativePrincipalPrepay'] = df_yearly['PrincipalSum'].cumsum() + df_yearly['PrepaymentSum'].cumsum()
-    # Clip at 100
     if initial_principal > 0:
+        df_yearly['CumulativePrincipalPrepay'] = df_yearly['PrincipalSum'].cumsum() + df_yearly['PrepaymentSum'].cumsum()
         df_yearly['PctLoanPaid'] = ((df_yearly['CumulativePrincipalPrepay'] / initial_principal) * 100).clip(upper=100)
     else:
         df_yearly['PctLoanPaid'] = 100
 
-    # Build final Yearly DataFrame
     df_yearly['BalanceClamped'] = df_yearly['FinalBalance'].apply(lambda x: max(0, x))
 
     schedule_df = pd.DataFrame({
@@ -179,11 +185,8 @@ def calculate_emi_and_schedule(
         'Balance (₹)': df_yearly['BalanceClamped'].apply(format_inr),
         '% of Loan Paid': df_yearly['PctLoanPaid'].apply(lambda x: f"{x:.2f}%"),
     })
-
-    # Reset index to remove the extra column
     schedule_df.reset_index(drop=True, inplace=True)
 
-    # Summaries
     total_principal_paid = df_yearly['PrincipalSum'].sum()
     total_prepayments = df_yearly['PrepaymentSum'].sum() + prepayments_one_time
     total_interest_paid = df_yearly['InterestSum'].sum()
@@ -206,13 +209,11 @@ def calculate_emi_and_schedule(
         'taxes_ins_maint': total_taxes_ins_maint
     }
 
-    # Pie chart
     fig_pie, ax_pie = plt.subplots(figsize=(5, 5))
     ax_pie.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
     ax_pie.axis('equal')
     ax_pie.set_title("Total Payments Breakdown")
 
-    # Stacked bar
     fig_bar, ax_bar = plt.subplots(figsize=(8, 5))
     numeric_years = df_yearly['Year'].astype(int).values
     principal_list = df_yearly['PrincipalSum'].values
@@ -222,7 +223,7 @@ def calculate_emi_and_schedule(
 
     bar_width = 0.6
 
-    # Principal
+    # Stacked bars
     ax_bar.bar(
         numeric_years,
         principal_list,
@@ -230,7 +231,6 @@ def calculate_emi_and_schedule(
         label='Principal',
         width=bar_width
     )
-    # Interest
     bottom_interest = principal_list
     ax_bar.bar(
         numeric_years,
@@ -240,7 +240,6 @@ def calculate_emi_and_schedule(
         label='Interest',
         width=bar_width
     )
-    # Prepayments
     bottom_prepay = principal_list + interest_list
     ax_bar.bar(
         numeric_years,
@@ -250,14 +249,12 @@ def calculate_emi_and_schedule(
         label='Prepayments',
         width=bar_width
     )
-    # Balance dotted line
     ax_bar.plot(
         numeric_years,
         balance_list,
         'k--o',
         label='Remaining Balance'
     )
-
     ax_bar.set_xlabel("Year")
     ax_bar.set_ylabel("Amount (₹)")
     ax_bar.set_title("Yearly Breakdown of Principal, Interest, Prepayments, & Balance")
@@ -279,7 +276,8 @@ def calculate_emi_and_schedule(
         df_monthly
     )
 
-# -------------- STREAMLIT APP --------------
+
+# ---------------------- STREAMLIT APP --------------------------------
 st.title("Home Loan EMI Calculator with Prepayments")
 
 start_year = st.number_input("Starting Year", value=2024, step=1)
@@ -339,7 +337,6 @@ if st.button("Calculate EMI"):
 
     # YEARLY SCHEDULE
     st.write("### Yearly Payment Schedule")
-    # Already called df.reset_index(drop=True)
     st.dataframe(
         schedule_df.style
         .set_table_styles([
@@ -355,37 +352,48 @@ if st.button("Calculate EMI"):
         ])
     )
 
-    # COLLAPSIBLE MONTHLY TABLE
+    # Hide past months if it's the current year
+    today = datetime.datetime.now()
+    current_year_system = today.year
+    current_month_system = today.month
+
     st.write("### Monthly Breakdown")
     if not df_monthly.empty:
-        # For each unique year in df_monthly, create an expander
         years_in_monthly = sorted(df_monthly['Year'].unique())
         for y in years_in_monthly:
+            # Filter for that year
             subset = df_monthly[df_monthly['Year'] == y].copy()
 
-            # Convert numeric columns to currency
-            subset['InterestPaid'] = subset['InterestPaid'].apply(format_inr)
-            subset['PrincipalPaid'] = subset['PrincipalPaid'].apply(format_inr)
-            subset['Prepayment'] = subset['Prepayment'].apply(format_inr)
-            subset['OldBalance'] = subset['OldBalance'].apply(format_inr)
-            subset['NewBalance'] = subset['NewBalance'].apply(format_inr)
+            # If y == current system year, filter out months < current system month
+            if y == current_year_system:
+                subset = subset[subset['CalendarMonthIndex'] >= current_month_system]
+
+            # Convert numeric columns to currency for display
+            numeric_cols = ['InterestPaid','PrincipalPaid','Prepayment','OldBalance','NewBalance']
+            for col in numeric_cols:
+                if col in subset.columns:
+                    subset[col] = subset[col].apply(format_inr)
 
             subset.reset_index(drop=True, inplace=True)
 
-            with st.expander(f"Year {y}"):
-                st.dataframe(
-                    subset.style
-                    .set_table_styles([
-                        {
-                            'selector': 'th',
-                            'props': [
-                                ('background-color', '#85C1E9'),
-                                ('color', 'black'),
-                                ('font-weight', 'bold')
-                            ]
-                        },
-                        {'selector': 'td', 'props': [('color', 'black')]},
-                    ])
-                )
+            if not subset.empty:
+                with st.expander(f"Year {y}"):
+                    st.dataframe(
+                        subset.style
+                        .set_table_styles([
+                            {
+                                'selector': 'th',
+                                'props': [
+                                    ('background-color', '#85C1E9'),
+                                    ('color', 'black'),
+                                    ('font-weight', 'bold')
+                                ]
+                            },
+                            {'selector': 'td', 'props': [('color', 'black')]},
+                        ])
+                    )
+            else:
+                # If it empties out for the current year (i.e., we were in a month < current month, no future months)
+                st.write(f"**Year {y}:** No upcoming months left (all were in the past).")
     else:
         st.write("**No monthly data** (possibly loan is 0 or no valid months).")

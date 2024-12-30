@@ -22,18 +22,9 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     # Apply extra payment/prepayment towards the principal (only applied once)
     loan_amount -= extra_payment
     
-    # Apply prepayments
-    # One-time prepayment: Apply the one-time prepayment directly (only subtracted once)
+    # Apply one-time prepayment: Apply the one-time prepayment directly (only subtracted once)
     if prepayments_one_time > 0:
         loan_amount -= prepayments_one_time
-    
-    # Monthly prepayment: Reduce loan amount by the monthly prepayment amount (applies to remaining loan balance)
-    if prepayments_monthly > 0:
-        loan_amount -= prepayments_monthly * loan_tenure_years * 12
-    
-    # Quarterly prepayment: Reduce loan amount by the quarterly prepayment amount (applies to remaining loan balance)
-    if prepayments_quarterly > 0:
-        loan_amount -= prepayments_quarterly * (loan_tenure_years * 4)
     
     # Monthly interest rate (annual rate divided by 12)
     monthly_interest_rate = (interest_rate / 100) / 12
@@ -56,13 +47,17 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         total_interest_for_year = 0
         total_principal_for_year = 0
         
-        # Apply quarterly prepayments: Subtract at the end of every 3 months
+        # Apply monthly prepayments: Subtract at the end of every month
         for j in range(12):  # For each month
             interest_payment = balance * monthly_interest_rate
             principal_payment = emi - interest_payment
             balance -= principal_payment
             
-            # Every 3 months, apply the quarterly prepayment
+            # Every month, apply the monthly prepayment
+            if prepayments_monthly > 0:
+                balance -= prepayments_monthly
+            
+            # Every 3 months (quarterly), apply the quarterly prepayment
             if (j + 1) % 3 == 0 and prepayments_quarterly > 0:
                 balance -= prepayments_quarterly
             
@@ -110,26 +105,4 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
 st.title("Home Loan EMI Calculator with Yearly Breakdown and Prepayments")
 
 # Create input fields
-home_value = st.number_input("Home Value (₹)", min_value=1000000, step=100000)
-down_payment_percentage = st.number_input("Down Payment Percentage (%)", min_value=0, max_value=100, step=1)
-interest_rate = st.number_input("Interest Rate (%)", min_value=0.0, step=0.1)
-loan_tenure_years = st.number_input("Loan Tenure (Years)", min_value=1, max_value=40, step=1)
-loan_insurance = st.number_input("Loan Insurance (₹)", min_value=0, step=1000)
-property_taxes = st.number_input("Property Taxes per Year (₹)", min_value=0, step=500)
-home_insurance = st.number_input("Home Insurance per Year (₹)", min_value=0, step=500)
-maintenance_expenses = st.number_input("Maintenance Expenses per Month (₹)", min_value=0, step=100)
-
-# Add input fields for partial prepayments
-prepayments_monthly = st.number_input("Monthly Prepayment (₹)", min_value=0, step=1000, help="Monthly prepayment amount")
-prepayments_quarterly = st.number_input("Quarterly Prepayment (₹)", min_value=0, step=1000, help="Quarterly prepayment amount")
-prepayments_one_time = st.number_input("One-time Prepayment (₹)", min_value=0, step=1000, help="One-time prepayment amount")
-
-# Calculate button
-if st.button("Calculate EMI"):
-    emi, schedule_df, fig = calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rate, loan_tenure_years, 
-                                                      loan_insurance, property_taxes, home_insurance, maintenance_expenses, 
-                                                      prepayments_monthly, prepayments_quarterly, prepayments_one_time)
-    
-    if emi is not None and schedule_df is not None:
-        # Display the EMI
-        st.write(f"**EMI: ₹ {emi:.2f}**")
+home_value = st.number_input("Home V

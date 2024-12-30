@@ -69,28 +69,27 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         if current_month % 12 == 0:
             year.append(current_month // 12)
 
-    # After the loan is paid off early, fill the lists to match the full loan tenure length
+    # If the loan is paid off early, fill the remaining months with zeros
     if balance <= 0:
         last_valid_entry = year[-1] if year else 0
-        # Fill remaining months or years with the last valid data point and zero balance
-        remaining_balance += [remaining_balance[-1]] * (loan_tenure_years - len(remaining_balance))
-        interest_paid += [interest_paid[-1]] * (loan_tenure_years - len(interest_paid))
-        principal_paid += [principal_paid[-1]] * (loan_tenure_years - len(principal_paid))
+        remaining_balance += [0] * (loan_tenure_years - len(remaining_balance))
+        interest_paid += [0] * (loan_tenure_years - len(interest_paid))
+        principal_paid += [0] * (loan_tenure_years - len(principal_paid))
         year += [last_valid_entry] * (loan_tenure_years - len(year))
-        
-        # Set all future months to zero balance after loan is paid off
-        for i in range(len(remaining_balance), loan_tenure_years):
-            remaining_balance[i] = 0
-            interest_paid[i] = 0
-            principal_paid[i] = 0
-    
-    # Ensure all lists are of the same length by trimming or padding them
+
+    # Ensure all lists are the same length by trimming or padding them
     max_length = max(len(year), len(remaining_balance), len(interest_paid), len(principal_paid))
     year = year[:max_length]
     remaining_balance = remaining_balance[:max_length]
     interest_paid = interest_paid[:max_length]
     principal_paid = principal_paid[:max_length]
 
+    # Debugging: Check list lengths before creating the DataFrame
+    print(f"year length: {len(year)}")
+    print(f"remaining_balance length: {len(remaining_balance)}")
+    print(f"interest_paid length: {len(interest_paid)}")
+    print(f"principal_paid length: {len(principal_paid)}")
+    
     # Create a DataFrame for the table
     schedule_df = pd.DataFrame({
         'Year': year,

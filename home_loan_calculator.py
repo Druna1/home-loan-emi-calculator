@@ -98,28 +98,45 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         'Principal Paid (₹)': principal_paid
     })
     
-    # Create a plot for the remaining balance and principal vs interest
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(year, remaining_balance, label='Remaining Balance', marker='o')
-    ax.bar(year, principal_paid, label='Principal Paid', alpha=0.5)
-    ax.bar(year, interest_paid, label='Interest Paid', alpha=0.5)
+    # Create a pie chart for the monthly breakdown
+    total_principal = sum(principal_paid)
+    total_prepayments = prepayments_monthly * loan_tenure_months + prepayments_one_time + prepayments_quarterly * (loan_tenure_years * 4)
+    total_interest = sum(interest_paid)
     
-    # Formatting Y-axis to show amounts in Lakhs (₹ 1 Lakh = ₹ 100,000)
-    ax.set_xlabel('Year')
-    ax.set_ylabel('Amount (₹ in Lakhs)')
-    ax.set_title('Yearly Loan Payment Breakdown')
+    # Total of all payments: Principal, Prepayments, Interest
+    total_of_all_payments = total_principal + total_prepayments + total_interest
     
-    # Set Y-axis limits and labels in Lakhs
-    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f'{x/100000:.1f}L'))
+    # Pie chart categories
+    labels = ['Principal', 'Prepayments', 'Interest']
+    sizes = [total_principal, total_prepayments, total_interest]
+    colors = ['#28a745', '#ff7f0e', '#ff9999']
     
-    ax.legend()
-    
-    # Display the plot and table
-    st.pyplot(fig)
+    # Plot pie chart
+    fig_pie, ax_pie = plt.subplots(figsize=(8, 8))
+    ax_pie.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
+    ax_pie.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+    ax_pie.set_title("Total Payments Breakdown")
+
+    # Calculate total monthly payment
+    total_monthly_payment = emi + prepayments_monthly
+
+    # Display the monthly payment breakdown and pie chart
+    st.write(f"### Total Monthly Payment: ₹ {total_monthly_payment:.2f}")
+    st.write("#### Monthly Payment Breakdown:")
+    st.write(f"- Principal & Interest (EMI): ₹ {emi:.2f}")
+    st.write(f"- Monthly Extra Payment (from Dec 2024): ₹ {prepayments_monthly:.2f}")
+    st.write(f"- Property Taxes: ₹ {property_taxes}")
+    st.write(f"- Home Insurance: ₹ {home_insurance}")
+    st.write(f"- Maintenance Expenses: ₹ {maintenance_expenses}")
+
+    # Display the pie chart
+    st.pyplot(fig_pie)
+
+    # Display the table
     st.write("### Yearly Payment Schedule")
     st.dataframe(schedule_df)
 
-    return emi, schedule_df, fig
+    return emi, schedule_df, fig_pie
 
 
 # Streamlit UI components

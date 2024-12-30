@@ -10,22 +10,18 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     # Check for zero interest rate and loan tenure to avoid division by zero error
     if interest_rate == 0:
         st.error("Interest rate cannot be zero.")
-        return None, None, None, None
+        return None, None, None
 
     if loan_tenure_years == 0:
         st.error("Loan tenure cannot be zero.")
-        return None, None, None, None
+        return None, None, None
     
-    # Calculate loan amount
+    # Initial loan amount after down payment and loan insurance
     loan_amount = home_value - (home_value * down_payment_percentage / 100) - loan_insurance
     
-    # Apply extra payment/prepayment towards the principal (only applied once)
-    loan_amount -= extra_payment
-    
-    # Apply one-time prepayment: Apply the one-time prepayment directly (only subtracted once)
-    if prepayments_one_time > 0:
-        loan_amount -= prepayments_one_time
-    
+    # Apply one-time prepayment (subtracted once from the loan amount)
+    loan_amount -= prepayments_one_time
+
     # Monthly interest rate (annual rate divided by 12)
     monthly_interest_rate = (interest_rate / 100) / 12
     
@@ -35,40 +31,41 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     # EMI calculation formula
     emi = (loan_amount * monthly_interest_rate * (1 + monthly_interest_rate)**loan_tenure_months) / \
           ((1 + monthly_interest_rate)**loan_tenure_months - 1)
-    
-    # Yearly breakdown: Create empty lists for each year
+
+    # Track the amortization schedule: year, remaining balance, interest paid, principal paid
     year = []
     remaining_balance = []
     principal_paid = []
     interest_paid = []
-
+    
     balance = loan_amount
     for i in range(1, loan_tenure_years + 1):
         total_interest_for_year = 0
         total_principal_for_year = 0
         
-        # Apply monthly prepayments: Subtract at the end of every month
-        for j in range(12):  # For each month
+        # Apply monthly prepayments and EMI payments
+        for j in range(12):  # Each month
             interest_payment = balance * monthly_interest_rate
             principal_payment = emi - interest_payment
             balance -= principal_payment
             
-            # Every month, apply the monthly prepayment
+            # Apply monthly prepayment
             if prepayments_monthly > 0:
                 balance -= prepayments_monthly
-            
-            # Every 3 months (quarterly), apply the quarterly prepayment
+
+            # Apply quarterly prepayment at the end of every 3 months
             if (j + 1) % 3 == 0 and prepayments_quarterly > 0:
                 balance -= prepayments_quarterly
-            
+
+            # Track interest and principal paid for the year
             total_interest_for_year += interest_payment
             total_principal_for_year += principal_payment
         
-        # Store the yearly data
-        year.append(i)
-        remaining_balance.append(max(balance, 0))  # Ensure the balance never goes negative
+        # Ensure the balance does not go negative
+        remaining_balance.append(max(balance, 0))
         interest_paid.append(total_interest_for_year)
         principal_paid.append(total_principal_for_year)
+        year.append(i)
     
     # Create a DataFrame for the table
     schedule_df = pd.DataFrame({
@@ -89,7 +86,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     ax.set_ylabel('Amount (₹ in Lakhs)')
     ax.set_title('Yearly Loan Payment Breakdown')
     
-    # Set Y-axis limits and labels in Lakhs
+    # Format Y-axis labels in Lakhs
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f'{x/100000:.1f}L'))
     
     ax.legend()

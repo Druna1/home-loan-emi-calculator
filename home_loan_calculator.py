@@ -104,7 +104,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     # Pie chart categories with updated pastel colors
     labels = ['Principal', 'Prepayments', 'Interest']
     sizes = [total_principal, total_prepayments, total_interest]
-    colors = ['#a8e6cf', '#ffcc99', '#ffab91']  # Pastel Green for Principal, Pastel Orange for Interest, Pastel Yellow for Extra Payment
+    colors = ['#d3d3d3', '#ffcc99', '#add8e6']  # Light Grey for Principal, Pastel Yellow for Extra Payment, Light Blue for Interest
     
     # Plot pie chart with updated colors
     fig_pie, ax_pie = plt.subplots(figsize=(5, 5))  # Smaller pie chart
@@ -130,8 +130,8 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
 
     # Bar graph for principal, interest, and remaining balance (stacked bars)
     fig_bar, ax_bar = plt.subplots(figsize=(12, 6))  # Longer bar chart
-    ax_bar.bar(year, principal_paid, label='Principal Paid', color='#a8e6cf', alpha=0.7, width=0.4, align='center')
-    ax_bar.bar(year, interest_paid, label='Interest Paid', color='#ffab91', alpha=0.7, width=0.4, align='center', bottom=principal_paid)
+    ax_bar.bar(year, principal_paid, label='Principal Paid', color='#d3d3d3', alpha=0.7, width=0.4, align='center')
+    ax_bar.bar(year, interest_paid, label='Interest Paid', color='#add8e6', alpha=0.7, width=0.4, align='center', bottom=principal_paid)
     ax_bar.plot(year, remaining_balance, label='Remaining Balance', marker='o', color='#1f77b4')
 
     ax_bar.set_xlabel('Year')

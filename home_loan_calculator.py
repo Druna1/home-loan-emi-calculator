@@ -69,7 +69,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         if current_month % 12 == 0:
             year.append(current_month // 12)
 
-    # After the loan is paid off early, fill the lists to match the full loan tenure length
+    # If the loan is paid off early, fill the remaining months with zeros
     if balance <= 0:
         last_valid_entry = year[-1] if year else 0
         remaining_balance += [0] * (loan_tenure_years - len(remaining_balance))

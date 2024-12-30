@@ -31,12 +31,13 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     interest_paid = []
     
     balance = loan_amount
+    total_interest_paid = 0
+    total_principal_paid = 0
+    total_interest_for_year = 0
+    total_principal_for_year = 0
+
     current_month = 1
     while balance > 0 and current_month <= loan_tenure_months:
-        total_interest_for_year = 0
-        total_principal_for_year = 0
-        
-        # Apply monthly prepayments and EMI payments
         interest_payment = balance * monthly_interest_rate
         principal_payment = emi - interest_payment
         balance -= principal_payment
@@ -49,25 +50,24 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         if current_month % 3 == 0 and prepayments_quarterly > 0:
             balance -= prepayments_quarterly
         
-        # Track total interest and principal paid for the year
         total_interest_for_year += interest_payment
         total_principal_for_year += principal_payment
 
-        # Ensure the balance does not go negative
-        remaining_balance.append(max(balance, 0))
-        interest_paid.append(total_interest_for_year)
-        principal_paid.append(total_principal_for_year)
-        
-        # Move to the next month
-        current_month += 1
-
-        # Stop calculation if the loan is fully paid off
-        if balance <= 0:
-            break
-
-        # Add year entry if it's the beginning of a new year
+        # Track data every year
         if current_month % 12 == 0:
             year.append(current_month // 12)
+            remaining_balance.append(balance)
+            interest_paid.append(total_interest_for_year)
+            principal_paid.append(total_principal_for_year)
+            
+            # Reset yearly totals
+            total_interest_for_year = 0
+            total_principal_for_year = 0
+
+        current_month += 1
+
+        if balance <= 0:
+            break
 
     # If the loan is paid off early, fill the remaining months with zeros
     if balance <= 0:
@@ -76,21 +76,15 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         interest_paid += [0] * (loan_tenure_years - len(interest_paid))
         principal_paid += [0] * (loan_tenure_years - len(principal_paid))
         year += [last_valid_entry] * (loan_tenure_years - len(year))
-        
-        # Set all future months to zero balance after loan is paid off
-        for i in range(len(remaining_balance), loan_tenure_years):
-            remaining_balance[i] = 0
-            interest_paid[i] = 0
-            principal_paid[i] = 0
-
+    
     # Ensure all lists are of the same length by trimming or padding them
-    max_length = loan_tenure_years  # we want it to match the loan tenure length
+    max_length = loan_tenure_years
     year = year[:max_length]
     remaining_balance = remaining_balance[:max_length]
     interest_paid = interest_paid[:max_length]
     principal_paid = principal_paid[:max_length]
 
-    # Check list lengths before creating the DataFrame
+    # Debugging: Check list lengths before creating the DataFrame
     print(f"year length: {len(year)}")
     print(f"remaining_balance length: {len(remaining_balance)}")
     print(f"interest_paid length: {len(interest_paid)}")

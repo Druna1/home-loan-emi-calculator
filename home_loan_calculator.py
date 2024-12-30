@@ -57,6 +57,8 @@ def calculate_emi_and_schedule(
         A yearly summary of principal, interest, prepayments, etc.
     fig_pie : matplotlib.figure.Figure
         A pie chart figure showing total payment breakdown.
+    fig_bar : matplotlib.figure.Figure
+        A stacked bar chart figure showing yearly breakdown (principal, interest, prepayments).
     total_monthly_payment : float
         Approx. monthly payment (EMI + monthly prepayment).
     total_interest_paid : float
@@ -79,7 +81,7 @@ def calculate_emi_and_schedule(
 
     # 5. Compute EMI (standard amortized formula)
     if monthly_interest_rate == 0:
-        # Edge case: 0% interest
+        # Edge case: 0% interest or zero months
         emi = loan_amount / loan_tenure_months if loan_tenure_months > 0 else 0
     else:
         emi = (
@@ -182,6 +184,9 @@ def calculate_emi_and_schedule(
     total_prepayments = sum(prepayments_list) + prepayments_one_time
     total_interest_paid = sum(interest_paid_list)
 
+    # -------------------------
+    # PIE CHART
+    # -------------------------
     labels = ['Principal', 'Prepayments', 'Interest']
     sizes = [total_principal_paid, total_prepayments, total_interest_paid]
     colors = ['#B0C4DE', '#FFB6C1', '#4169E1']
@@ -191,16 +196,65 @@ def calculate_emi_and_schedule(
     ax_pie.axis('equal')
     ax_pie.set_title("Total Payments Breakdown")
 
+    # -------------------------
+    # STACKED BAR CHART
+    # -------------------------
+    # Convert years_list to numeric (if it's not already)
+    numeric_years = [int(y) for y in years_list]
+
+    fig_bar, ax_bar = plt.subplots(figsize=(8, 5))
+    
+    # Plot Principal
+    ax_bar.bar(
+        numeric_years,
+        principal_paid_list,
+        color='#B0C4DE',
+        label='Principal'
+    )
+    
+    # Plot Interest (stacked on top of Principal)
+    bottom_interest = principal_paid_list  # The bottom of the interest bar is the principal bar
+    ax_bar.bar(
+        numeric_years,
+        interest_paid_list,
+        bottom=bottom_interest,
+        color='#4169E1',
+        label='Interest'
+    )
+    
+    # Plot Prepayments (stacked on top of Principal + Interest)
+    bottom_prepayments = [
+        principal_paid_list[i] + interest_paid_list[i]
+        for i in range(len(years_list))
+    ]
+    ax_bar.bar(
+        numeric_years,
+        prepayments_list,
+        bottom=bottom_prepayments,
+        color='#FFB6C1',
+        label='Prepayments'
+    )
+    
+    ax_bar.set_xlabel("Year")
+    ax_bar.set_ylabel("Amount (₹)")
+    ax_bar.set_title("Yearly Breakdown of Principal, Interest, and Prepayments")
+    ax_bar.legend()
+
+    # Optional: Format y-axis as Lakhs or standard
+    ax_bar.yaxis.set_major_formatter(
+        ticker.FuncFormatter(lambda x, pos: f"₹{x:,.0f}")
+    )
+
     # Approx total monthly payment
     total_monthly_payment = emi + prepayments_monthly
 
-    return emi, schedule_df, fig_pie, total_monthly_payment, total_interest_paid
+    return emi, schedule_df, fig_pie, fig_bar, total_monthly_payment, total_interest_paid
 
 
 # -------------- STREAMLIT APP --------------
 st.title("Home Loan EMI Calculator with Prepayments (Revised)")
 
-# Updated default values
+# Default values
 home_value = st.number_input("Home Value (₹)", min_value=1_000_000, step=100000, value=1_000_000)
 down_payment_percentage = st.number_input("Down Payment Percentage (%)", min_value=0, max_value=100, step=1, value=20)
 interest_rate = st.number_input("Interest Rate (%)", min_value=0.0, step=0.1, value=8.0)
@@ -219,7 +273,14 @@ prepayments_one_time = st.number_input("One-time Prepayment (₹)", min_value=0,
                                        help="One-time amount deducted immediately from loan")
 
 if st.button("Calculate EMI"):
-    emi, schedule_df, fig_pie, total_monthly_payment, total_interest_paid = calculate_emi_and_schedule(
+    (
+        emi, 
+        schedule_df, 
+        fig_pie, 
+        fig_bar, 
+        total_monthly_payment, 
+        total_interest_paid
+    ) = calculate_emi_and_schedule(
         home_value,
         down_payment_percentage,
         interest_rate,
@@ -240,6 +301,9 @@ if st.button("Calculate EMI"):
 
     # Show the pie chart
     st.pyplot(fig_pie)
+
+    # Show the stacked bar chart
+    st.pyplot(fig_bar)
 
     # Show the yearly schedule
     st.write("### Yearly Payment Schedule")

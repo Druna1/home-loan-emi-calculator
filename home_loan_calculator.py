@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from datetime import datetime
 
 # Function to format amounts as INR (no decimals, comma-separated)
 def format_inr(amount):
@@ -18,7 +19,8 @@ def calculate_emi_and_schedule(
     maintenance_expenses,
     prepayments_monthly=0,
     prepayments_quarterly=0,
-    prepayments_one_time=0
+    prepayments_one_time=0,
+    start_year=2024
 ):
     """
     Calculates an approximate loan schedule, tracking data yearly,
@@ -48,11 +50,11 @@ def calculate_emi_and_schedule(
     # Sum of Down Payment + Fees + One-time Expenses
     down_payment_fees_one_time = down_payment_value + loan_insurance + prepayments_one_time
 
-    # Effective Loan Amount
-    loan_amount = home_value - down_payment_value - loan_insurance
+    # Effective Loan Amount (before subtracting one-time prepayment)
+    initial_principal = home_value - down_payment_value - loan_insurance
 
-    # Subtract one-time prepayment
-    loan_amount -= prepayments_one_time
+    # Now subtract the one-time prepayment from the loan principal
+    loan_amount = initial_principal - prepayments_one_time
     if loan_amount < 0:
         loan_amount = 0
 
@@ -91,8 +93,7 @@ def calculate_emi_and_schedule(
     current_month = 1
 
     # We'll store a yearly "snapshot" of the balance for plotting the dotted line
-    # (Because monthly might be too granular; let's keep it year-based for a smoother chart)
-    balance_yearly_snapshots = [balance]  # initial snapshot before any payment
+    balance_yearly_snapshots = [balance]  # initial snapshot
 
     while balance > 0 and current_month <= loan_tenure_months:
         # Interest portion
@@ -119,13 +120,17 @@ def calculate_emi_and_schedule(
 
         # End of year or if the loan finishes
         if (current_month % 12 == 0) or (balance <= 0):
-            this_year = (current_month + 11) // 12
-            years_list.append(this_year)
+            # 'year_index' = 1, 2, 3, ... 
+            year_index = (current_month + 11) // 12
+            # Convert to actual calendar year
+            actual_year = start_year + (year_index - 1)
+
+            years_list.append(actual_year)
             remaining_balance_list.append(balance)
             interest_paid_list.append(total_interest_for_year)
             principal_paid_list.append(total_principal_for_year)
 
-            # Approx total prepayments for the year
+            # Approx total prepayments for that year
             year_prepayments = prepayments_monthly * 12 + prepayments_quarterly * 4
             prepayments_list.append(year_prepayments)
 
@@ -145,8 +150,9 @@ def calculate_emi_and_schedule(
     # Fill remaining years if loan ends early
     total_years_recorded = len(years_list)
     if total_years_recorded < loan_tenure_years:
-        for y in range(total_years_recorded + 1, loan_tenure_years + 1):
-            years_list.append(y)
+        for _ in range(total_years_recorded + 1, loan_tenure_years + 1):
+            actual_year = years_list[-1] + 1 if years_list else start_year
+            years_list.append(actual_year)
             remaining_balance_list.append(0)
             interest_paid_list.append(0)
             principal_paid_list.append(0)
@@ -154,7 +160,23 @@ def calculate_emi_and_schedule(
             total_payment_list.append(0)
             balance_yearly_snapshots.append(0)
 
-    # -------- 4) YEARLY SCHEDULE DATAFRAME --------
+    # -------- 4) CALCULATE % OF LOAN PAID CUMULATIVELY --------
+    # We'll build a list of cumulative principal + prepayments up to each year.
+    cumulative_paid = 0
+    percent_loan_paid_list = []
+    for i in range(len(years_list)):
+        # principal_paid_list[i] is the principal portion for this year
+        # prepayments_list[i] is the extra prepayments for this year
+        yearly_paid = principal_paid_list[i] + prepayments_list[i]
+        cumulative_paid += yearly_paid
+        # % of original principal
+        if initial_principal > 0:
+            percent_loan_paid = (cumulative_paid / initial_principal) * 100
+        else:
+            percent_loan_paid = 100.0
+        percent_loan_paid_list.append(percent_loan_paid)
+
+    # -------- 5) BUILD THE YEARLY SCHEDULE DATAFRAME --------
     schedule_df = pd.DataFrame({
         'Year': [str(y) for y in years_list],
         'Principal (₹)': [format_inr(p) for p in principal_paid_list],
@@ -166,14 +188,18 @@ def calculate_emi_and_schedule(
         ],
         'Total Payment (₹)': [format_inr(t) for t in total_payment_list],
         'Balance (₹)': [format_inr(b) for b in remaining_balance_list],
+        '% of Loan Paid': [f"{p:.2f}%" for p in percent_loan_paid_list]
     })
 
-    # -------- 5) SUMMARIES FOR CHARTS & FINAL SUMMARY --------
+    # We'll remove the default DataFrame index to avoid an empty column in the UI
+    schedule_df.reset_index(drop=True, inplace=True)
+
+    # -------- 6) SUMMARIES FOR CHARTS & FINAL SUMMARY --------
     total_principal_paid = sum(principal_paid_list)
     total_prepayments = sum(prepayments_list) + prepayments_one_time
     total_interest_paid = sum(interest_paid_list)
 
-    # Pie chart data
+    # For the pie chart
     labels = ['Principal', 'Prepayments', 'Interest']
     sizes = [total_principal_paid, total_prepayments, total_interest_paid]
     colors = ['#B0C4DE', '#FFB6C1', '#4169E1']
@@ -193,18 +219,17 @@ def calculate_emi_and_schedule(
         'taxes_ins_maint': total_taxes_ins_maint
     }
 
-    # -------- 6) CREATE PIE CHART --------
+    # -------- 7) CREATE PIE CHART --------
     fig_pie, ax_pie = plt.subplots(figsize=(5, 5))
     ax_pie.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
     ax_pie.axis('equal')
     ax_pie.set_title("Total Payments Breakdown")
 
-    # -------- 7) CREATE STACKED BAR CHART + DOTTED LINE (YEARLY) --------
+    # -------- 8) CREATE STACKED BAR CHART + DOTTED LINE (YEARLY) --------
     numeric_years = [int(y) for y in years_list]
 
     fig_bar, ax_bar = plt.subplots(figsize=(8, 5))
 
-    # Stacked bars for Principal, Interest, Prepayments
     bar_width = 0.6
 
     # Plot Principal
@@ -254,19 +279,21 @@ def calculate_emi_and_schedule(
     ax_bar.set_title("Yearly Breakdown of Principal, Interest, Prepayments, & Balance")
     ax_bar.legend()
 
-    # Format y-axis
     ax_bar.yaxis.set_major_formatter(
         ticker.FuncFormatter(lambda x, pos: f"₹{x:,.0f}")
     )
 
-    # -------- 8) TOTAL MONTHLY PAYMENT --------
+    # -------- 9) TOTAL MONTHLY PAYMENT --------
     total_monthly_payment = emi + prepayments_monthly
 
     return emi, schedule_df, fig_pie, fig_bar, total_monthly_payment, total_interest_paid, summary_dict
 
 
 # -------------- STREAMLIT APP --------------
-st.title("Home Loan EMI Calculator with Prepayments (Revised)")
+st.title("Home Loan EMI Calculator with Prepayments")
+
+# Let user pick a starting year if desired, or you can hard-code it:
+start_year = st.number_input("Starting Year", value=2024, step=1)
 
 # Default values
 home_value = st.number_input("Home Value (₹)", min_value=1_000_000, step=100000, value=1_000_000)
@@ -306,7 +333,8 @@ if st.button("Calculate EMI"):
         maintenance_expenses,
         prepayments_monthly,
         prepayments_quarterly,
-        prepayments_one_time
+        prepayments_one_time,
+        start_year
     )
 
     # -------------------------
@@ -316,18 +344,10 @@ if st.button("Calculate EMI"):
     st.write(
         f"**Down Payment, Fees & One-time Expenses**: {format_inr(summary_dict['down_payment_fees_onetime'])}"
     )
-    st.write(
-        f"**Principal**: {format_inr(summary_dict['principal'])}"
-    )
-    st.write(
-        f"**Prepayments**: {format_inr(summary_dict['prepayments'])}"
-    )
-    st.write(
-        f"**Interest**: {format_inr(summary_dict['interest'])}"
-    )
-    st.write(
-        f"**Taxes, Home Insurance & Maintenance (Total)**: {format_inr(summary_dict['taxes_ins_maint'])}"
-    )
+    st.write(f"**Principal**: {format_inr(summary_dict['principal'])}")
+    st.write(f"**Prepayments**: {format_inr(summary_dict['prepayments'])}")
+    st.write(f"**Interest**: {format_inr(summary_dict['interest'])}")
+    st.write(f"**Taxes, Home Insurance & Maintenance (Total)**: {format_inr(summary_dict['taxes_ins_maint'])}")
 
     # -------------------------
     # Base EMI and total monthly payment

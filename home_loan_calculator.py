@@ -111,8 +111,8 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     sizes = [total_principal, total_prepayments, total_interest]
     colors = ['#28a745', '#ff7f0e', '#ff9999']
     
-    # Plot pie chart
-    fig_pie, ax_pie = plt.subplots(figsize=(8, 8))
+    # Plot pie chart with reduced size
+    fig_pie, ax_pie = plt.subplots(figsize=(6, 6))  # Reduced size
     ax_pie.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
     ax_pie.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
     ax_pie.set_title("Total Payments Breakdown")
@@ -132,11 +132,26 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     # Display the pie chart
     st.pyplot(fig_pie)
 
+    # Bar graph for principal, interest, and remaining balance
+    fig_bar, ax_bar = plt.subplots(figsize=(10, 6))
+    ax_bar.bar(year, principal_paid, label='Principal Paid', color='#28a745', alpha=0.7)
+    ax_bar.bar(year, interest_paid, label='Interest Paid', color='#ff7f0e', alpha=0.7)
+    ax_bar.plot(year, remaining_balance, label='Remaining Balance', marker='o', color='#1f77b4')
+
+    ax_bar.set_xlabel('Year')
+    ax_bar.set_ylabel('Amount (₹ in Lakhs)')
+    ax_bar.set_title('Yearly Loan Payment Breakdown')
+    ax_bar.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f'{x/100000:.1f}L'))
+    ax_bar.legend()
+
+    # Display the bar chart
+    st.pyplot(fig_bar)
+
     # Display the table
     st.write("### Yearly Payment Schedule")
     st.dataframe(schedule_df)
 
-    return emi, schedule_df, fig_pie
+    return emi, schedule_df, fig_pie, fig_bar
 
 
 # Streamlit UI components
@@ -159,7 +174,7 @@ prepayments_one_time = st.number_input("One-time Prepayment (₹)", min_value=0,
 
 # Calculate button
 if st.button("Calculate EMI"):
-    emi, schedule_df, fig = calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rate, loan_tenure_years, 
+    emi, schedule_df, fig_pie, fig_bar = calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rate, loan_tenure_years, 
                                                       loan_insurance, property_taxes, home_insurance, maintenance_expenses, 
                                                       prepayments_monthly, prepayments_quarterly, prepayments_one_time)
     

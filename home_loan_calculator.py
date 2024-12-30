@@ -65,24 +65,27 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         if balance <= 0:
             break
 
-    # Calculate the number of years it took to clear the loan
-    years_taken = current_month // 12
+        # Add year entry if it's the beginning of a new year
+        if current_month % 12 == 0:
+            year.append(current_month // 12)
+
+    # Ensure we add year data even if we stop early
     if current_month % 12 != 0:
-        years_taken += 1
+        year.append(current_month // 12)
     
     # Create a DataFrame for the table
     schedule_df = pd.DataFrame({
-        'Year': year[:years_taken],
-        'Remaining Balance (₹)': remaining_balance[:years_taken],
-        'Interest Paid (₹)': interest_paid[:years_taken],
-        'Principal Paid (₹)': principal_paid[:years_taken]
+        'Year': year,
+        'Remaining Balance (₹)': remaining_balance,
+        'Interest Paid (₹)': interest_paid,
+        'Principal Paid (₹)': principal_paid
     })
     
     # Create a plot for the remaining balance and principal vs interest
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(year[:years_taken], remaining_balance[:years_taken], label='Remaining Balance', marker='o')
-    ax.bar(year[:years_taken], principal_paid[:years_taken], label='Principal Paid', alpha=0.5)
-    ax.bar(year[:years_taken], interest_paid[:years_taken], label='Interest Paid', alpha=0.5)
+    ax.plot(year, remaining_balance, label='Remaining Balance', marker='o')
+    ax.bar(year, principal_paid, label='Principal Paid', alpha=0.5)
+    ax.bar(year, interest_paid, label='Interest Paid', alpha=0.5)
     
     # Formatting Y-axis to show amounts in Lakhs (₹ 1 Lakh = ₹ 100,000)
     ax.set_xlabel('Year')
@@ -100,6 +103,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     st.dataframe(schedule_df)
 
     return emi, schedule_df, fig
+
 
 # Streamlit UI components
 st.title("Home Loan EMI Calculator with Prepayments")

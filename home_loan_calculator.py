@@ -31,47 +31,58 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     interest_paid = []
     
     balance = loan_amount
-    for i in range(1, loan_tenure_years + 1):
+    current_month = 1
+    while balance > 0 and current_month <= loan_tenure_months:
         total_interest_for_year = 0
         total_principal_for_year = 0
         
         # Apply monthly prepayments and EMI payments
-        for j in range(12):  # Each month
-            interest_payment = balance * monthly_interest_rate
-            principal_payment = emi - interest_payment
-            balance -= principal_payment
-            
-            # Apply monthly prepayment
-            if prepayments_monthly > 0:
-                balance -= prepayments_monthly
-
-            # Apply quarterly prepayment every 3 months
-            if (j + 1) % 3 == 0 and prepayments_quarterly > 0:
-                balance -= prepayments_quarterly
-            
-            # Track total interest and principal paid for the year
-            total_interest_for_year += interest_payment
-            total_principal_for_year += principal_payment
+        interest_payment = balance * monthly_interest_rate
+        principal_payment = emi - interest_payment
+        balance -= principal_payment
         
+        # Apply monthly prepayment
+        if prepayments_monthly > 0:
+            balance -= prepayments_monthly
+
+        # Apply quarterly prepayment every 3 months
+        if current_month % 3 == 0 and prepayments_quarterly > 0:
+            balance -= prepayments_quarterly
+        
+        # Track total interest and principal paid for the year
+        total_interest_for_year += interest_payment
+        total_principal_for_year += principal_payment
+
         # Ensure the balance does not go negative
         remaining_balance.append(max(balance, 0))
         interest_paid.append(total_interest_for_year)
         principal_paid.append(total_principal_for_year)
-        year.append(i)
+        
+        # Move to the next month
+        current_month += 1
+
+        # Stop calculation if the loan is fully paid off
+        if balance <= 0:
+            break
+
+    # Calculate the number of years it took to clear the loan
+    years_taken = current_month // 12
+    if current_month % 12 != 0:
+        years_taken += 1
     
     # Create a DataFrame for the table
     schedule_df = pd.DataFrame({
-        'Year': year,
-        'Remaining Balance (₹)': remaining_balance,
-        'Interest Paid (₹)': interest_paid,
-        'Principal Paid (₹)': principal_paid
+        'Year': year[:years_taken],
+        'Remaining Balance (₹)': remaining_balance[:years_taken],
+        'Interest Paid (₹)': interest_paid[:years_taken],
+        'Principal Paid (₹)': principal_paid[:years_taken]
     })
     
     # Create a plot for the remaining balance and principal vs interest
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(year, remaining_balance, label='Remaining Balance', marker='o')
-    ax.bar(year, principal_paid, label='Principal Paid', alpha=0.5)
-    ax.bar(year, interest_paid, label='Interest Paid', alpha=0.5)
+    ax.plot(year[:years_taken], remaining_balance[:years_taken], label='Remaining Balance', marker='o')
+    ax.bar(year[:years_taken], principal_paid[:years_taken], label='Principal Paid', alpha=0.5)
+    ax.bar(year[:years_taken], interest_paid[:years_taken], label='Interest Paid', alpha=0.5)
     
     # Formatting Y-axis to show amounts in Lakhs (₹ 1 Lakh = ₹ 100,000)
     ax.set_xlabel('Year')
@@ -89,7 +100,6 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     st.dataframe(schedule_df)
 
     return emi, schedule_df, fig
-
 
 # Streamlit UI components
 st.title("Home Loan EMI Calculator with Prepayments")

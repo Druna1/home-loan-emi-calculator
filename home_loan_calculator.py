@@ -69,14 +69,15 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
         if current_month % 12 == 0:
             year.append(current_month // 12)
 
-    # Ensure we add year data even if we stop early
-    if current_month % 12 != 0:
-        year.append(current_month // 12)
-    
-    # Add remaining entries to make the lists the same length
-    remaining_balance += [0] * (loan_tenure_years - len(remaining_balance))
-    interest_paid += [0] * (loan_tenure_years - len(interest_paid))
-    principal_paid += [0] * (loan_tenure_years - len(principal_paid))
+    # Add the remaining years or months to complete the lists
+    # Fill the remaining months/years with the last valid entry if loan is paid off early
+    if balance <= 0:
+        # Add remaining years if we finished early
+        last_valid_entry = year[-1] if year else 0
+        remaining_balance += [remaining_balance[-1]] * (loan_tenure_years - len(remaining_balance))
+        interest_paid += [interest_paid[-1]] * (loan_tenure_years - len(interest_paid))
+        principal_paid += [principal_paid[-1]] * (loan_tenure_years - len(principal_paid))
+        year += [last_valid_entry] * (loan_tenure_years - len(year))
 
     # Create a DataFrame for the table
     schedule_df = pd.DataFrame({

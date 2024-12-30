@@ -24,10 +24,6 @@ def calculate_monthly_schedule(
     Returns a DataFrame with columns:
       [Year, MonthNum, CalendarMonthIndex, CalendarMonthAbbr,
        InterestPaid, PrincipalPaid, Prepayment, OldBalance, NewBalance]
-
-    'Year' is the actual calendar year starting at 'start_year'.
-    'MonthNum' is the sequential month number of the loan (1..n).
-    'CalendarMonthIndex' is 1..12 (Jan..Dec).
     """
     balance = initial_principal
     data_rows = []
@@ -38,7 +34,7 @@ def calculate_monthly_schedule(
         year_offset = (current_month - 1) // 12
         this_year = start_year + year_offset
         this_month_index = (current_month - 1) % 12  # 0..11
-        month_abbr = calendar.month_abbr[this_month_index + 1]  # 'Jan', 'Feb', ...
+        month_abbr = calendar.month_abbr[this_month_index + 1]  # e.g., 'Jan'
         calendar_month_index = this_month_index + 1             # 1..12
 
         # Calculate interest & principal for this EMI
@@ -95,7 +91,9 @@ def calculate_emi_and_schedule(
     and a MONTHLY breakdown (for expanders).
 
     Omits months in the current system year that are already in the past,
-    so the partial-year data is consistent between monthly & yearly views.
+    so partial-year data is consistent between monthly & yearly views.
+
+    Then forces the % of Loan Paid to 100% whenever FinalBalance <= 0.
     """
 
     # 1) DOWN PAYMENT & LOAN
@@ -156,7 +154,7 @@ def calculate_emi_and_schedule(
         )
         df_monthly = df_monthly[condition_keep].copy()
 
-    # 5) BUILD YEARLY AGGREGATION FROM FILTERED MONTHLY
+    # 5) BUILD YEARLY AGGREGATION
     import numpy as np
     if df_monthly.empty:
         df_yearly = pd.DataFrame(columns=['Year','PrincipalSum','PrepaymentSum','InterestSum','FinalBalance'])
@@ -185,6 +183,7 @@ def calculate_emi_and_schedule(
     df_yearly['TotalPayment'] = df_yearly['PrincipalSum'] + df_yearly['InterestSum'] + df_yearly['PrepaymentSum']
     df_yearly['TaxesInsuranceMaintenance'] = property_taxes + home_insurance + (maintenance_expenses * 12)
 
+    # Calculate initial % of Loan Paid
     if initial_principal > 0:
         df_yearly['CumulativePP'] = df_yearly['PrincipalSum'].cumsum() + df_yearly['PrepaymentSum'].cumsum()
         df_yearly['PctLoanPaid'] = (df_yearly['CumulativePP'] / initial_principal * 100).clip(upper=100)
@@ -192,6 +191,9 @@ def calculate_emi_and_schedule(
         df_yearly['PctLoanPaid'] = 100
 
     df_yearly['BalanceClamped'] = df_yearly['FinalBalance'].apply(lambda x: max(0, x))
+
+    # ---- Force 100% if FinalBalance <= 0 ----
+    df_yearly.loc[df_yearly['FinalBalance'] <= 0, 'PctLoanPaid'] = 100
 
     schedule_df = pd.DataFrame({
         'Year': df_yearly['Year'].astype(str),
@@ -295,8 +297,9 @@ def calculate_emi_and_schedule(
         df_monthly
     )
 
+
 # ============= STREAMLIT APP =============
-st.title("Home Loan EMI Calculator (Skipping Past Months of Current Year)")
+st.title("Home Loan EMI Calculator (Forcing 100% if Balance=0)")
 
 start_year = st.number_input("Starting Year", value=2024, step=1)
 
@@ -347,9 +350,6 @@ if st.button("Calculate EMI"):
     st.write(f"**Taxes, Home Insurance & Maintenance (Total)**: {format_inr(summary_dict['taxes_ins_maint'])}")
 
     st.write(f"**Base EMI**: {format_inr(emi)}")
-    # Removed the two lines below:
-    # st.write(f"**Approx. Total Monthly Payment (EMI + Monthly Prepayment)**: {format_inr(total_monthly_payment)}")
-    # st.write(f"**Total Interest Paid (Approx)**: {format_inr(total_interest_paid)}")
 
     st.pyplot(fig_pie)
     st.pyplot(fig_bar)

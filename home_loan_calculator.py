@@ -3,18 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+# Function to calculate EMI and loan schedule
 def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rate, loan_tenure_years, 
                                 loan_insurance, property_taxes, home_insurance, maintenance_expenses, 
-                                extra_payment=0, prepayments_monthly=0, prepayments_quarterly=0, prepayments_one_time=0):
-    
-    # Check for zero interest rate and loan tenure to avoid division by zero error
-    if interest_rate == 0:
-        st.error("Interest rate cannot be zero.")
-        return None, None, None
-
-    if loan_tenure_years == 0:
-        st.error("Loan tenure cannot be zero.")
-        return None, None, None
+                                prepayments_monthly=0, prepayments_quarterly=0, prepayments_one_time=0):
     
     # Initial loan amount after down payment and loan insurance
     loan_amount = home_value - (home_value * down_payment_percentage / 100) - loan_insurance
@@ -32,7 +24,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     emi = (loan_amount * monthly_interest_rate * (1 + monthly_interest_rate)**loan_tenure_months) / \
           ((1 + monthly_interest_rate)**loan_tenure_months - 1)
 
-    # Yearly breakdown: Create empty lists for each year
+    # Initialize lists to track yearly data
     year = []
     remaining_balance = []
     principal_paid = []
@@ -53,11 +45,11 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
             if prepayments_monthly > 0:
                 balance -= prepayments_monthly
 
-            # Apply quarterly prepayment at the end of every 3 months
+            # Apply quarterly prepayment every 3 months
             if (j + 1) % 3 == 0 and prepayments_quarterly > 0:
                 balance -= prepayments_quarterly
             
-            # Track interest and principal paid for the year
+            # Track total interest and principal paid for the year
             total_interest_for_year += interest_payment
             total_principal_for_year += principal_payment
         
@@ -86,7 +78,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     ax.set_ylabel('Amount (₹ in Lakhs)')
     ax.set_title('Yearly Loan Payment Breakdown')
     
-    # Format Y-axis labels in Lakhs
+    # Set Y-axis limits and labels in Lakhs
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f'{x/100000:.1f}L'))
     
     ax.legend()
@@ -98,10 +90,11 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
 
     return emi, schedule_df, fig
 
-# Streamlit app
-st.title("Home Loan EMI Calculator with Yearly Breakdown and Prepayments")
 
-# Create input fields
+# Streamlit UI components
+st.title("Home Loan EMI Calculator with Prepayments")
+
+# Create input fields for loan parameters
 home_value = st.number_input("Home Value (₹)", min_value=1000000, step=100000)
 down_payment_percentage = st.number_input("Down Payment Percentage (%)", min_value=0, max_value=100, step=1)
 interest_rate = st.number_input("Interest Rate (%)", min_value=0.0, step=0.1)

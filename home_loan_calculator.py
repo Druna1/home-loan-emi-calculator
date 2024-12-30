@@ -32,7 +32,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     emi = (loan_amount * monthly_interest_rate * (1 + monthly_interest_rate)**loan_tenure_months) / \
           ((1 + monthly_interest_rate)**loan_tenure_months - 1)
 
-    # Track the amortization schedule: year, remaining balance, interest paid, principal paid
+    # Yearly breakdown: Create empty lists for each year
     year = []
     remaining_balance = []
     principal_paid = []
@@ -56,7 +56,7 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
             # Apply quarterly prepayment at the end of every 3 months
             if (j + 1) % 3 == 0 and prepayments_quarterly > 0:
                 balance -= prepayments_quarterly
-
+            
             # Track interest and principal paid for the year
             total_interest_for_year += interest_payment
             total_principal_for_year += principal_payment

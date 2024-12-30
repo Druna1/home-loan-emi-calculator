@@ -34,18 +34,4 @@ def calculate_emi_and_schedule(home_value, down_payment_percentage, interest_rat
     
     # EMI calculation formula
     emi = (loan_amount * monthly_interest_rate * (1 + monthly_interest_rate)**loan_tenure_months) / \
-          ((1 + monthly_interest_rate)**loan_tenure_months - 1)
     
-    # Yearly breakdown: Create empty lists for each year
-    year = []
-    remaining_balance = []
-    principal_paid = []
-    interest_paid = []
-
-    balance = loan_amount
-    for i in range(1, loan_tenure_years + 1):
-        total_interest_for_year = 0
-        total_principal_for_year = 0
-        
-        # Apply monthly prepayments: Subtract at the end of every month
-        for j in range(1
